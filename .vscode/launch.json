@@ -1,0 +1,211 @@
+{
+    "configurations": [
+        {
+            "name": "API - Compute NBody",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "compute_nbody"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Dynamic Uniform Buffers",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "dynamic_uniform_buffers"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - HDR",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "hdr"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Hello Triangle",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "hello_triangle"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - HLSL Shaders",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "hlsl_shaders"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Instancing",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "instancing"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Separate Image Sampler",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "separate_image_sampler"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Swapchain Recreation",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "swapchain_recreation"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Terrain Tessellation",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": [
+                "sample",
+                "terrain_tessellation"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Texture Loading",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "texture_loading"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Texture Mipmap Generation",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "texture_mipmap_generation"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "API - Timestamp Queries",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "timestamp_queries"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+
+
+
+        {
+            "name": "Performance - 16 Bit Arithmetic",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "16bit_arithmetic"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Performance - AFBC",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "afbc"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Performance - Async Compute",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "async_compute"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Performance - MSAA",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "msaa"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Performance - Raytracing Basic",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": ["sample", "raytracing_basic"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Performance - Texture Compression Comparison",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/windows/app/bin/debug/AMD64/vulkan_samples.exe",
+            "args": [
+                "sample",
+                "texture_compression_comparison"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+    ]
+}

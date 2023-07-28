@@ -1,7 +1,6 @@
 assets/scenes
 build
 .vs
-.vscode
 imgui.ini
 doxygen/
 tests/system_test/artifacts

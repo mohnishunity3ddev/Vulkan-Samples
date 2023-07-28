@@ -1,0 +1,22 @@
+{
+    "files.trimTrailingWhitespace": true,
+
+    // Font Stuff
+    "editor.fontFamily": " 'IosevkaTerm Nerd Font Mono Semibold', 'CaskaydiaCove NF Mono', 'JetBrainsMono NF', 'Oxygen Mono', 'Fragment Mono', 'Rec Mono Casual', 'Monocraft Nerd Font', 'Ubuntu Mono' ",
+    "editor.fontSize": 15,
+    "editor.fontLigatures": true,
+    "editor.fontWeight": "normal",
+
+    "terminal.integrated.profiles.windows": {
+        "Vulkan Samples Profile": {
+            "path": [
+                "${env:windir}\\System32\\cmd.exe"
+            ],
+            "args": [
+                "/k",
+                "${workspaceFolder}/.vscode/set_alias.bat"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "Vulkan Samples Profile",
+}
