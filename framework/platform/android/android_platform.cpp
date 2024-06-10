@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023, Arm Limited and Contributors
+/* Copyright (c) 2019-2024, Arm Limited and Contributors
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -25,17 +25,15 @@
 
 #include "common/error.h"
 
-VKBP_DISABLE_WARNINGS()
+#include <fmt/format.h>
 #include <imgui.h>
 #include <jni.h>
 #include <spdlog/sinks/android_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/spdlog.h>
-VKBP_ENABLE_WARNINGS()
 
 #include "apps.h"
-#include "common/logging.h"
 #include "common/strings.h"
+#include "core/util/logging.hpp"
 #include "platform/android/android_window.h"
 #include "platform/input_events.h"
 
@@ -335,17 +333,6 @@ bool motion_event_filter(const GameActivityMotionEvent *event)
 }
 }        // namespace
 
-namespace fs
-{
-void create_directory(const std::string &path)
-{
-	if (!is_directory(path))
-	{
-		mkdir(path.c_str(), 0777);
-	}
-}
-}        // namespace fs
-
 AndroidPlatform::AndroidPlatform(const PlatformContext &context) :
     Platform{context}
 {
@@ -460,8 +447,11 @@ void AndroidPlatform::terminate(ExitCode code)
 			log_output.clear();
 			break;
 		case ExitCode::FatalError:
-			send_notification(log_output);
+		{
+			const std::string error_message = "Error! Could not launch selected sample:" + get_last_error();
+			send_notification(error_message);
 			break;
+		}
 		default:
 			break;
 	}

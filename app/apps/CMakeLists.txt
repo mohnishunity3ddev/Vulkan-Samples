@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, Arm Limited and Contributors
+# Copyright (c) 2020-2024, Arm Limited and Contributors
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -46,23 +46,8 @@ foreach(SAMPLE_ID ${TOTAL_SAMPLE_ID_LIST})
     endif()
 endforeach()
 
-set(TEST_INCLUDE_FILES)
-set(TEST_INFO_LIST)
-set(TEST_APP_INFO_LIST)
-
-foreach(TEST_ID ${TOTAL_TEST_ID_LIST})
-    if (TARGET ${TEST_ID})
-        list(APPEND TEST_INCLUDE_FILES "#include \"${TEST_ID}/${TEST_ID}.h\"")
-        list(APPEND TEST_INFO_LIST "\tTestInfo{ \"${TEST_ID}\", create_${TEST_ID}_test },")
-        list(APPEND APP_INFO_LIST "\tAppInfo{ \"${TEST_ID}\", create_${TEST_ID}_test },")
-    endif()
-endforeach()
-
 list(JOIN SAMPLE_INCLUDE_FILES "\n" SAMPLE_INCLUDE_FILES)
 list(JOIN SAMPLE_INFO_LIST "\n" SAMPLE_INFO_LIST)
-list(JOIN TEST_INCLUDE_FILES "\n" TEST_INCLUDE_FILES)
-list(JOIN TEST_INFO_LIST "\n" TEST_INFO_LIST)
-list(JOIN TEST_APP_INFO_LIST "\n" TEST_APP_INFO_LIST)
 list(JOIN APP_INFO_LIST "\n" APP_INFO_LIST)
 
 configure_file(apps.cpp.in apps.cpp)
@@ -79,18 +64,28 @@ add_library(${PROJECT_NAME} STATIC ${SRC})
 target_link_libraries(${PROJECT_NAME} PUBLIC framework)
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/samples
-    ${CMAKE_SOURCE_DIR}/tests/system_test/sub_tests
-    ${CMAKE_SOURCE_DIR}/tests/system_test/test_framework)
+    ${CMAKE_SOURCE_DIR}/samples)
 
-# Link all samples and tests
-set(PROJECT_ID_LIST ${TOTAL_SAMPLE_ID_LIST} ${TOTAL_TEST_ID_LIST})
+# Link all samples
+set(PROJECT_ID_LIST ${TOTAL_SAMPLE_ID_LIST})
 foreach(ID ${PROJECT_ID_LIST})
     if(TARGET ${ID})
         get_target_property(TARGET_TYPE ${ID} TYPE)
 
-        if(TARGET_TYPE STREQUAL "OBJECT_LIBRARY")
+        if(TARGET_TYPE STREQUAL "OBJECT_LIBRARY" OR TARGET_TYPE STREQUAL "STATIC_LIBRARY")
             target_link_libraries(${PROJECT_NAME} PUBLIC ${ID})
         endif()
     endif()
 endforeach()
+
+if (IOS)
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+            "-framework UIKit"
+            "-framework Foundation"
+            "-framework CoreGraphics"
+            "-framework Metal"
+            "-framework QuartzCore"
+            "-framework IOKit"
+            "-framework IOSurface"
+            )
+endif ()

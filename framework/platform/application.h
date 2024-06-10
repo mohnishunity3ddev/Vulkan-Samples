@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023, Arm Limited and Contributors
+/* Copyright (c) 2019-2024, Arm Limited and Contributors
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -20,6 +20,7 @@
 #include <string>
 
 #include "debug_info.h"
+#include "drawer.h"
 #include "platform/configuration.h"
 #include "platform/input_events.h"
 #include "timer.h"
@@ -53,6 +54,14 @@ class Application
 	virtual void update(float delta_time);
 
 	/**
+	 * @brief Main loop sample overlay events
+	 * @param delta_time The time taken since the last frame
+	 * @param additional_ui Function that implements an additional Gui
+	 */
+	virtual void update_overlay(
+	    float delta_time, const std::function<void()> &additional_ui = []() {});
+
+	/**
 	 * @brief Handles cleaning up the application
 	 */
 	virtual void finish();
@@ -69,6 +78,11 @@ class Application
 	 * @param input_event The input event object
 	 */
 	virtual void input_event(const InputEvent &input_event);
+
+	/**
+	 * @brief Returns the drawer object for the sample
+	 */
+	virtual Drawer *get_drawer();
 
 	const std::string &get_name() const;
 
@@ -88,7 +102,36 @@ class Application
 		requested_close = true;
 	}
 
+	/**
+	 * @brief Indicates that the plugin wants to change the shader in the sample
+	 * @param shader_language language the shader uses
+	 */
+	virtual void change_shader(const vkb::ShaderSourceLanguage &shader_language);
+
+	/**
+	 * @brief Returns stored shaders by sample
+	 */
+	const std::map<ShaderSourceLanguage, std::vector<std::pair<VkShaderStageFlagBits, std::string>>> &get_available_shaders() const;
+
+	/**
+	 * @brief Set the shading language to be used for this sample (glsl, hlsl)
+	 * @param language The shading language that the sample will use
+	 */
+	static void set_shading_language(const vkb::ShadingLanguage language);
+
+	/**
+	 * @brief Returns the selected shading language to be used for this sample (glsl, hlsl)
+	 */
+	static vkb::ShadingLanguage get_shading_language();
+
   protected:
+	/**
+	 * @brief Stores a list of shaders for the active sample, used by plugins to dynamically change the shader
+	 * @param shader_language The shader language for which the shader list will be provided
+	 * @param list_of_shaders The shader list, where paths and shader types are provided
+	 */
+	void store_shaders(const vkb::ShaderSourceLanguage &shader_language, const std::vector<std::pair<VkShaderStageFlagBits, std::string>> &list_of_shaders);
+
 	float fps{0.0f};
 
 	float frame_time{0.0f};        // In ms
@@ -104,9 +147,28 @@ class Application
   private:
 	std::string name{};
 
+	/**
+	 * @brief stores the names of the shaders the sample uses
+	 */
+	std::map<ShaderSourceLanguage, std::vector<std::pair<VkShaderStageFlagBits, std::string>>> available_shaders;
+
 	// The debug info of the app
 	DebugInfo debug_info{};
 
 	bool requested_close{false};
+
+	/** @brief Used to select between different shader languages, static so it can be changed from a plugin */
+	inline static vkb::ShadingLanguage shading_language{vkb::ShadingLanguage::GLSL};
 };
+
+inline void Application::set_shading_language(const vkb::ShadingLanguage language)
+{
+	shading_language = language;
+}
+
+inline vkb::ShadingLanguage Application::get_shading_language()
+{
+	return shading_language;
+}
+
 }        // namespace vkb

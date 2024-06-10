@@ -1,4 +1,4 @@
-/* Copyright (c) 2022-2023, Sascha Willems
+/* Copyright (c) 2022-2024, Sascha Willems
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -68,7 +68,7 @@ void GraphicsPipelineLibrary::request_gpu_features(vkb::PhysicalDevice &gpu)
 
 GraphicsPipelineLibrary::~GraphicsPipelineLibrary()
 {
-	if (device)
+	if (has_device())
 	{
 		for (auto pipeline : pipelines)
 		{
@@ -217,15 +217,31 @@ void GraphicsPipelineLibrary::setup_descriptor_sets()
 }
 
 // Compiling shaders can be simplified with the new extension, so we only require code to generate the SPIR-V in this sample
-void GraphicsPipelineLibrary::compile_shader(const std::string filename, VkShaderStageFlagBits shader_stage, std::vector<uint32_t> &spirv)
+void GraphicsPipelineLibrary::load_shader(const std::string shader, VkShaderStageFlagBits shader_stage, std::vector<uint32_t> &spirv)
 {
-	vkb::GLSLCompiler glsl_compiler;
-	auto              buffer = vkb::fs::read_shader_binary(filename);
-	std::string       info_log;
-	if (!glsl_compiler.compile_to_spirv(shader_stage, buffer, "main", {}, spirv, info_log))
+	switch (get_shading_language())
 	{
-		LOGE("Failed to compile shader, Error: {}", info_log.c_str());
-		throw std::runtime_error{"Failed to compile shader"};
+		case vkb::ShadingLanguage::GLSL:
+		{
+			// The framework currently compiles GLSL shaders at runtime
+			// Note: this can be reworked once offline compilation for GLSL shaders is added
+			vkb::GLSLCompiler glsl_compiler;
+			auto              buffer = vkb::fs::read_shader_binary("graphics_pipeline_library/glsl/" + shader);
+			std::string       info_log;
+			if (!glsl_compiler.compile_to_spirv(shader_stage, buffer, "main", {}, spirv, info_log))
+			{
+				LOGE("Failed to compile shader, Error: {}", info_log.c_str());
+				throw std::runtime_error{"Failed to compile shader"};
+			}
+			break;
+		}
+		case vkb::ShadingLanguage::HLSL:
+		{
+			// HLSL shaders are compiled offline, so we can simply load the SPIR-V from disk
+			auto buffer = vkb::fs::read_shader_binary("graphics_pipeline_library/hlsl/" + shader + ".spv");
+			spirv       = std::vector<uint32_t>(reinterpret_cast<uint32_t *>(buffer.data()), reinterpret_cast<uint32_t *>(buffer.data()) + buffer.size() / sizeof(uint32_t));
+			break;
+		}
 	}
 }
 
@@ -289,7 +305,7 @@ void GraphicsPipelineLibrary::prepare_pipeline_library()
 
 		// Using the pipeline library extension, we can skip the pipeline shader module creation and directly pass the shader code to the pipeline
 		std::vector<uint32_t> spirv;
-		compile_shader("graphics_pipeline_library/shared.vert", VK_SHADER_STAGE_VERTEX_BIT, spirv);
+		load_shader("shared.vert", VK_SHADER_STAGE_VERTEX_BIT, spirv);
 
 		VkShaderModuleCreateInfo shader_module_create_info{};
 		shader_module_create_info.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -352,7 +368,7 @@ void GraphicsPipelineLibrary::prepare_new_pipeline()
 
 	// Using the pipeline library extension, we can skip the pipeline shader module creation and directly pass the shader code to the pipeline
 	std::vector<uint32_t> spirv;
-	compile_shader("graphics_pipeline_library/uber.frag", VK_SHADER_STAGE_FRAGMENT_BIT, spirv);
+	load_shader("uber.frag", VK_SHADER_STAGE_FRAGMENT_BIT, spirv);
 
 	VkShaderModuleCreateInfo shader_module_create_info{};
 	shader_module_create_info.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -411,9 +427,10 @@ void GraphicsPipelineLibrary::prepare_new_pipeline()
 	linking_info.pLibraries   = libraries.data();
 
 	VkGraphicsPipelineCreateInfo executable_pipeline_create_info{};
-	executable_pipeline_create_info.sType  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	executable_pipeline_create_info.pNext  = &linking_info;
-	executable_pipeline_create_info.layout = pipeline_layout;
+	executable_pipeline_create_info.sType      = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	executable_pipeline_create_info.pNext      = &linking_info;
+	executable_pipeline_create_info.layout     = pipeline_layout;
+	executable_pipeline_create_info.renderPass = render_pass;
 	if (link_time_optimization)
 	{
 		// If link time optimization is activated in the UI, we set the VK_PIPELINE_CREATE_LINK_TIME_OPTIMIZATION_BIT_EXT flag which will let the implementation do additional optimizations at link time
@@ -514,7 +531,7 @@ void GraphicsPipelineLibrary::render(float delta_time)
 	if (new_pipeline_created)
 	{
 		new_pipeline_created = false;
-		build_command_buffers();
+		rebuild_command_buffers();
 	}
 	draw();
 

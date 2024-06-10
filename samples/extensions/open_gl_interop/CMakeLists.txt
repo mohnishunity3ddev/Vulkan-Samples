@@ -1,5 +1,5 @@
-# Copyright (c) 2020-2023, Bradley Austin Davis
-# Copyright (c) 2020-2023, Arm Limited
+# Copyright (c) 2020-2024, Bradley Austin Davis
+# Copyright (c) 2020-2024, Arm Limited
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -40,7 +40,7 @@ target_include_directories(glad PUBLIC ${GLAD_DIR}/include)
 set_target_properties(glad PROPERTIES FOLDER "ThirdParty" POSITION_INDEPENDENT_CODE ON)
 
 # Only Compile on platforms that support glfw
-if (NOT (ANDROID OR DIRECT_TO_DISPLAY))
+if (NOT (ANDROID OR DIRECT_TO_DISPLAY OR IOS))
     target_link_libraries( glad PUBLIC glfw )
     add_sample_with_tags(
         ID ${FOLDER_NAME}
@@ -56,6 +56,9 @@ if (NOT (ANDROID OR DIRECT_TO_DISPLAY))
             offscreen_context.h
             offscreen_context.cpp
         SHADER_FILES_GLSL
-            "texture_loading/texture.vert"
-            "texture_loading/texture.frag")
+            "texture_loading/glsl/texture.vert"
+            "texture_loading/glsl/texture.frag"
+        SHADER_FILES_HLSL
+            "texture_loading/hlsl/texture.vert.hlsl"
+            "texture_loading/hlsl/texture.frag.hlsl")
 endif()

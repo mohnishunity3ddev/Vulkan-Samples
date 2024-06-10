@@ -1,4 +1,4 @@
-/* Copyright (c) 2021-2023, Sascha Willems
+/* Copyright (c) 2021-2024, Sascha Willems
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -39,7 +39,7 @@ Synchronization2::Synchronization2()
 
 Synchronization2::~Synchronization2()
 {
-	if (device)
+	if (has_device())
 	{
 		// Graphics
 		graphics.uniform_buffer.reset();
@@ -307,8 +307,7 @@ void Synchronization2::prepare_storage_buffers()
 
 	// Staging
 	// SSBO won't be changed on the host after upload so copy to device local memory
-	vkb::core::Buffer staging_buffer{get_device(), storage_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY};
-	staging_buffer.update(particle_buffer.data(), static_cast<size_t>(storage_buffer_size));
+	vkb::core::Buffer staging_buffer = vkb::core::Buffer::create_staging_buffer(get_device(), particle_buffer);
 
 	compute.storage_buffer = std::make_unique<vkb::core::Buffer>(get_device(),
 	                                                             storage_buffer_size,
@@ -316,7 +315,7 @@ void Synchronization2::prepare_storage_buffers()
 	                                                             VMA_MEMORY_USAGE_GPU_ONLY);
 
 	// Copy from staging buffer to storage buffer
-	VkCommandBuffer copy_command = device->create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+	VkCommandBuffer copy_command = get_device().create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 	VkBufferCopy    copy_region  = {};
 	copy_region.size             = storage_buffer_size;
 	vkCmdCopyBuffer(copy_command, staging_buffer.get_handle(), compute.storage_buffer->get_handle(), 1, &copy_region);
@@ -340,7 +339,7 @@ void Synchronization2::prepare_storage_buffers()
 		vkCmdPipelineBarrier2KHR(copy_command, &dependency_info);
 	}
 
-	device->flush_command_buffer(copy_command, queue, true);
+	get_device().flush_command_buffer(copy_command, queue, true);
 }
 
 void Synchronization2::setup_descriptor_pool()
@@ -458,8 +457,8 @@ void Synchronization2::prepare_pipelines()
 	// Load shaders
 	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages;
 
-	shader_stages[0] = load_shader("synchronization_2/particle.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1] = load_shader("synchronization_2/particle.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0] = load_shader("synchronization_2", "particle.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1] = load_shader("synchronization_2", "particle.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	// Vertex bindings and attributes
 	const std::vector<VkVertexInputBindingDescription> vertex_input_bindings = {
@@ -584,7 +583,7 @@ void Synchronization2::prepare_compute()
 	VkComputePipelineCreateInfo compute_pipeline_create_info = vkb::initializers::compute_pipeline_create_info(compute.pipeline_layout, 0);
 
 	// 1st pass - Particle movement calculations
-	compute_pipeline_create_info.stage = load_shader("synchronization_2/particle_calculate.comp", VK_SHADER_STAGE_COMPUTE_BIT);
+	compute_pipeline_create_info.stage = load_shader("synchronization_2", "particle_calculate.comp", VK_SHADER_STAGE_COMPUTE_BIT);
 
 	// Set some shader parameters via specialization constants
 	struct SpecializationData
@@ -616,7 +615,7 @@ void Synchronization2::prepare_compute()
 	VK_CHECK(vkCreateComputePipelines(get_device().get_handle(), pipeline_cache, 1, &compute_pipeline_create_info, nullptr, &compute.pipeline_calculate));
 
 	// 2nd pass - Particle integration
-	compute_pipeline_create_info.stage = load_shader("synchronization_2/particle_integrate.comp", VK_SHADER_STAGE_COMPUTE_BIT);
+	compute_pipeline_create_info.stage = load_shader("synchronization_2", "particle_integrate.comp", VK_SHADER_STAGE_COMPUTE_BIT);
 
 	specialization_map_entries.clear();
 	specialization_map_entries.push_back(vkb::initializers::specialization_map_entry(0, 0, sizeof(uint32_t)));
@@ -717,14 +716,14 @@ void Synchronization2::prepare_compute()
 		fence_info.flags = VK_FLAGS_NONE;
 
 		VkFence fence;
-		VK_CHECK(vkCreateFence(device->get_handle(), &fence_info, nullptr, &fence));
+		VK_CHECK(vkCreateFence(get_device().get_handle(), &fence_info, nullptr, &fence));
 		// Submit to the *compute* queue
 		VkResult result = vkQueueSubmit(compute.queue, 1, &submit_info, fence);
 		// Wait for the fence to signal that command buffer has finished executing
-		VK_CHECK(vkWaitForFences(device->get_handle(), 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT));
-		vkDestroyFence(device->get_handle(), fence, nullptr);
+		VK_CHECK(vkWaitForFences(get_device().get_handle(), 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT));
+		vkDestroyFence(get_device().get_handle(), fence, nullptr);
 
-		vkFreeCommandBuffers(device->get_handle(), compute.command_pool, 1, &transfer_command);
+		vkFreeCommandBuffers(get_device().get_handle(), compute.command_pool, 1, &transfer_command);
 	}
 }
 

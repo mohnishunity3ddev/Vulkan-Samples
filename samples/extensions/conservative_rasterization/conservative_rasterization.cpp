@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023, Sascha Willems
+/* Copyright (c) 2019-2024, Sascha Willems
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -41,7 +41,7 @@ ConservativeRasterization::ConservativeRasterization()
 
 ConservativeRasterization::~ConservativeRasterization()
 {
-	if (device)
+	if (has_device())
 	{
 		vkDestroyImageView(get_device().get_handle(), offscreen_pass.color.view, nullptr);
 		vkDestroyImage(get_device().get_handle(), offscreen_pass.color.image, nullptr);
@@ -353,11 +353,8 @@ void ConservativeRasterization::load_assets()
 	uint32_t index_buffer_size               = triangle.index_count * sizeof(uint32_t);
 
 	// Host visible source buffers (staging)
-	vkb::core::Buffer vertex_staging_buffer{get_device(), vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY};
-	vertex_staging_buffer.update(vertex_buffer.data(), vertex_buffer_size);
-
-	vkb::core::Buffer index_staging_buffer{get_device(), index_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY};
-	index_staging_buffer.update(index_buffer.data(), index_buffer_size);
+	vkb::core::Buffer vertex_staging_buffer = vkb::core::Buffer::create_staging_buffer(get_device(), vertex_buffer);
+	vkb::core::Buffer index_staging_buffer  = vkb::core::Buffer::create_staging_buffer(get_device(), index_buffer);
 
 	// Device local destination buffers
 	triangle.vertices = std::make_unique<vkb::core::Buffer>(get_device(),
@@ -473,7 +470,8 @@ void ConservativeRasterization::prepare_pipelines()
 
 	// Get device properties for conservative rasterization
 	// Requires VK_KHR_get_physical_device_properties2 and manual function pointer creation
-	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(instance->get_handle(), "vkGetPhysicalDeviceProperties2KHR"));
+	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR =
+	    reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(get_instance().get_handle(), "vkGetPhysicalDeviceProperties2KHR"));
 	assert(vkGetPhysicalDeviceProperties2KHR);
 	VkPhysicalDeviceProperties2KHR device_properties{};
 	conservative_raster_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT;
@@ -506,8 +504,8 @@ void ConservativeRasterization::prepare_pipelines()
 	pipeline_create_info.pStages             = shader_stages.data();
 
 	// Full screen pass
-	shader_stages[0] = load_shader("conservative_rasterization/fullscreen.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1] = load_shader("conservative_rasterization/fullscreen.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0] = load_shader("conservative_rasterization", "fullscreen.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1] = load_shader("conservative_rasterization", "fullscreen.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 	// Empty vertex input state (full screen triangle generated in vertex shader)
 	VkPipelineVertexInputStateCreateInfo empty_input_state = vkb::initializers::pipeline_vertex_input_state_create_info();
 	pipeline_create_info.pVertexInputState                 = &empty_input_state;
@@ -521,16 +519,16 @@ void ConservativeRasterization::prepare_pipelines()
 	// TODO(tomatkinson): Check support for lines
 	rasterization_state.lineWidth   = 2.0f;
 	rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-	shader_stages[0]                = load_shader("conservative_rasterization/triangle.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]                = load_shader("conservative_rasterization/triangleoverlay.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0]                = load_shader("conservative_rasterization", "triangle.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]                = load_shader("conservative_rasterization", "triangleoverlay.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &pipeline_create_info, nullptr, &pipelines.triangle_overlay));
 
 	pipeline_create_info.renderPass = offscreen_pass.render_pass;
 
 	// Triangle rendering
 	rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-	shader_stages[0]                = load_shader("conservative_rasterization/triangle.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]                = load_shader("conservative_rasterization/triangle.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0]                = load_shader("conservative_rasterization", "triangle.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]                = load_shader("conservative_rasterization", "triangle.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	// Basic pipeline
 	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &pipeline_create_info, nullptr, &pipelines.triangle));
@@ -618,7 +616,7 @@ void ConservativeRasterization::on_update_ui_overlay(vkb::Drawer &drawer)
 	{
 		if (drawer.checkbox("Conservative rasterization", &conservative_raster_enabled))
 		{
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
 	}
 	if (drawer.header("Device properties"))
@@ -634,7 +632,7 @@ void ConservativeRasterization::on_update_ui_overlay(vkb::Drawer &drawer)
 	}
 }
 
-std::unique_ptr<vkb::VulkanSample> create_conservative_rasterization()
+std::unique_ptr<vkb::VulkanSample<vkb::BindingType::C>> create_conservative_rasterization()
 {
 	return std::make_unique<ConservativeRasterization>();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023, Sascha Willems
+/* Copyright (c) 2019-2024, Sascha Willems
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -42,7 +42,7 @@ PushDescriptors::PushDescriptors()
 
 PushDescriptors::~PushDescriptors()
 {
-	if (device)
+	if (has_device())
 	{
 		vkDestroyPipeline(get_device().get_handle(), pipeline, nullptr);
 		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layout, nullptr);
@@ -238,8 +238,8 @@ void PushDescriptors::prepare_pipelines()
 	pipeline_create_info.pDynamicState                = &dynamic_state;
 
 	const std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages = {
-	    load_shader("push_descriptors/cube.vert", VK_SHADER_STAGE_VERTEX_BIT),
-	    load_shader("push_descriptors/cube.frag", VK_SHADER_STAGE_FRAGMENT_BIT)};
+	    load_shader("push_descriptors", "cube.vert", VK_SHADER_STAGE_VERTEX_BIT),
+	    load_shader("push_descriptors", "cube.frag", VK_SHADER_STAGE_FRAGMENT_BIT)};
 
 	pipeline_create_info.stageCount = static_cast<uint32_t>(shader_stages.size());
 	pipeline_create_info.pStages    = shader_stages.data();
@@ -331,7 +331,8 @@ bool PushDescriptors::prepare(const vkb::ApplicationOptions &options)
 	}
 
 	// Get device push descriptor properties (to display them)
-	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(instance->get_handle(), "vkGetPhysicalDeviceProperties2KHR"));
+	PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR =
+	    reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(get_instance().get_handle(), "vkGetPhysicalDeviceProperties2KHR"));
 	if (!vkGetPhysicalDeviceProperties2KHR)
 	{
 		throw std::runtime_error("Could not get a valid function pointer for vkGetPhysicalDeviceProperties2KHR");
@@ -390,7 +391,7 @@ void PushDescriptors::on_update_ui_overlay(vkb::Drawer &drawer)
 	}
 }
 
-std::unique_ptr<vkb::VulkanSample> create_push_descriptors()
+std::unique_ptr<vkb::VulkanSample<vkb::BindingType::C>> create_push_descriptors()
 {
 	return std::make_unique<PushDescriptors>();
 }

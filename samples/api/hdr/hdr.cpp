@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023, Sascha Willems
+/* Copyright (c) 2019-2024, Sascha Willems
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -30,7 +30,7 @@ HDR::HDR()
 
 HDR::~HDR()
 {
-	if (device)
+	if (has_device())
 	{
 		vkDestroyPipeline(get_device().get_handle(), pipelines.skybox, nullptr);
 		vkDestroyPipeline(get_device().get_handle(), pipelines.reflect, nullptr);
@@ -288,26 +288,12 @@ void HDR::create_attachment(VkFormat format, VkImageUsageFlagBits usage, FrameBu
 void HDR::prepare_offscreen_buffer()
 {
 	// We need to select a format that supports the color attachment blending flag, so we iterate over multiple formats to find one that supports this flag
-	VkFormat color_format{VK_FORMAT_UNDEFINED};
-
 	const std::vector<VkFormat> float_format_priority_list = {
 	    VK_FORMAT_R32G32B32A32_SFLOAT,
-	    VK_FORMAT_R16G16B16A16_SFLOAT};
+	    VK_FORMAT_R16G16B16A16_SFLOAT        // Guaranteed blend support for this
+	};
 
-	for (auto &format : float_format_priority_list)
-	{
-		const VkFormatProperties properties = get_device().get_gpu().get_format_properties(format);
-		if (properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT)
-		{
-			color_format = format;
-			break;
-		}
-	}
-
-	if (color_format == VK_FORMAT_UNDEFINED)
-	{
-		throw std::runtime_error("No suitable float format could be determined");
-	}
+	VkFormat color_format = vkb::choose_blendable_format(get_device().get_gpu().get_handle(), float_format_priority_list);
 
 	{
 		offscreen.width  = width;
@@ -417,11 +403,16 @@ void HDR::prepare_offscreen_buffer()
 		framebuffer_create_info.layers                  = 1;
 		VK_CHECK(vkCreateFramebuffer(get_device().get_handle(), &framebuffer_create_info, nullptr, &offscreen.framebuffer));
 
+		// Calculate valid filter and mipmap modes
+		VkFilter            filter      = VK_FILTER_NEAREST;
+		VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		vkb::make_filters_valid(get_device().get_gpu().get_handle(), color_format, &filter, &mipmap_mode);
+
 		// Create sampler to sample from the color attachments
 		VkSamplerCreateInfo sampler = vkb::initializers::sampler_create_info();
-		sampler.magFilter           = VK_FILTER_NEAREST;
-		sampler.minFilter           = VK_FILTER_NEAREST;
-		sampler.mipmapMode          = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler.magFilter           = filter;
+		sampler.minFilter           = filter;
+		sampler.mipmapMode          = mipmap_mode;
 		sampler.addressModeU        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		sampler.addressModeV        = sampler.addressModeU;
 		sampler.addressModeW        = sampler.addressModeU;
@@ -513,11 +504,16 @@ void HDR::prepare_offscreen_buffer()
 		framebuffer_create_info.layers                  = 1;
 		VK_CHECK(vkCreateFramebuffer(get_device().get_handle(), &framebuffer_create_info, nullptr, &filter_pass.framebuffer));
 
+		// Calculate valid filter and mipmap modes
+		VkFilter            filter      = VK_FILTER_NEAREST;
+		VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		vkb::make_filters_valid(get_device().get_gpu().get_handle(), color_format, &filter, &mipmap_mode);
+
 		// Create sampler to sample from the color attachments
 		VkSamplerCreateInfo sampler = vkb::initializers::sampler_create_info();
-		sampler.magFilter           = VK_FILTER_NEAREST;
-		sampler.minFilter           = VK_FILTER_NEAREST;
-		sampler.mipmapMode          = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler.magFilter           = filter;
+		sampler.minFilter           = filter;
+		sampler.mipmapMode          = mipmap_mode;
 		sampler.addressModeU        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		sampler.addressModeV        = sampler.addressModeU;
 		sampler.addressModeW        = sampler.addressModeU;
@@ -570,7 +566,7 @@ void HDR::setup_descriptor_pool()
 void HDR::setup_descriptor_set_layout()
 {
 	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {
-	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
+	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
 	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
 	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
 	};
@@ -759,8 +755,8 @@ void HDR::prepare_pipelines()
 	pipeline_create_info.pVertexInputState                 = &empty_input_state;
 
 	// Final fullscreen composition pass pipeline
-	shader_stages[0]                  = load_shader("hdr/composition.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]                  = load_shader("hdr/composition.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0]                  = load_shader("hdr", "composition.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]                  = load_shader("hdr", "composition.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 	pipeline_create_info.layout       = pipeline_layouts.composition;
 	pipeline_create_info.renderPass   = render_pass;
 	rasterization_state.cullMode      = VK_CULL_MODE_FRONT_BIT;
@@ -769,8 +765,8 @@ void HDR::prepare_pipelines()
 	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &pipeline_create_info, nullptr, &pipelines.composition));
 
 	// Bloom pass
-	shader_stages[0]                           = load_shader("hdr/bloom.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]                           = load_shader("hdr/bloom.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0]                           = load_shader("hdr", "bloom.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]                           = load_shader("hdr", "bloom.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 	color_blend_state.pAttachments             = &blend_attachment_state;
 	blend_attachment_state.colorWriteMask      = 0xF;
 	blend_attachment_state.blendEnable         = VK_TRUE;
@@ -824,8 +820,8 @@ void HDR::prepare_pipelines()
 	color_blend_state.attachmentCount  = 2;
 	color_blend_state.pAttachments     = blend_attachment_states.data();
 
-	shader_stages[0] = load_shader("hdr/gbuffer.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1] = load_shader("hdr/gbuffer.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0] = load_shader("hdr", "gbuffer.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1] = load_shader("hdr", "gbuffer.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	// Set constant parameters via specialization constants
 	specialization_map_entries[0]        = vkb::initializers::specialization_map_entry(0, 0, sizeof(uint32_t));
@@ -868,9 +864,10 @@ void HDR::prepare_uniform_buffers()
 
 void HDR::update_uniform_buffers()
 {
-	ubo_vs.projection       = camera.matrices.perspective;
-	ubo_vs.modelview        = camera.matrices.view * models.transforms[models.object_index];
-	ubo_vs.skybox_modelview = camera.matrices.view;
+	ubo_vs.projection        = camera.matrices.perspective;
+	ubo_vs.modelview         = camera.matrices.view * models.transforms[models.object_index];
+	ubo_vs.skybox_modelview  = camera.matrices.view;
+	ubo_vs.inverse_modelview = glm::inverse(camera.matrices.view);
 	uniform_buffers.matrices->convert_and_update(ubo_vs);
 }
 
@@ -934,19 +931,19 @@ void HDR::on_update_ui_overlay(vkb::Drawer &drawer)
 		if (drawer.combo_box("Object type", &models.object_index, object_names))
 		{
 			update_uniform_buffers();
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
-		if (drawer.input_float("Exposure", &ubo_params.exposure, 0.025f, 3))
+		if (drawer.input_float("Exposure", &ubo_params.exposure, 0.025f, "%.3f"))
 		{
 			update_params();
 		}
 		if (drawer.checkbox("Bloom", &bloom))
 		{
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
 		if (drawer.checkbox("Skybox", &display_skybox))
 		{
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
 	}
 }

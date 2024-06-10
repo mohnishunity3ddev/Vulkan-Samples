@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Holochip Corporation
+ * Copyright (c) 2021-2024, Holochip Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -55,6 +55,7 @@ class DynamicRendering : public ApiVulkanSample
 		glm::mat4 projection;
 		glm::mat4 modelview;
 		glm::mat4 skybox_modelview;
+		glm::mat4 inverse_modelview;
 		float     modelscale = 0.05f;
 	} ubo_vs;
 
@@ -76,4 +77,4 @@ class DynamicRendering : public ApiVulkanSample
 	bool enable_dynamic;
 };
 
-std::unique_ptr<vkb::VulkanSample> create_dynamic_rendering();
+std::unique_ptr<vkb::VulkanSample<vkb::BindingType::C>> create_dynamic_rendering();

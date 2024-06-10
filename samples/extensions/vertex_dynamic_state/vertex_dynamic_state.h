@@ -1,4 +1,4 @@
-/* Copyright (c) 2022-2023, Mobica Limited
+/* Copyright (c) 2022-2024, Mobica Limited
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -32,6 +32,7 @@ class VertexDynamicState : public ApiVulkanSample
 		glm::mat4 projection;
 		glm::mat4 modelview;
 		glm::mat4 skybox_modelview;
+		glm::mat4 inverse_modelview;
 		float     modelscale = 0.15f;
 	} ubo_vs;
 
@@ -85,4 +86,4 @@ class VertexDynamicState : public ApiVulkanSample
 	void draw_created_model(VkCommandBuffer commandBuffer);
 };
 
-std::unique_ptr<vkb::VulkanSample> create_vertex_dynamic_state();
+std::unique_ptr<vkb::VulkanSample<vkb::BindingType::C>> create_vertex_dynamic_state();

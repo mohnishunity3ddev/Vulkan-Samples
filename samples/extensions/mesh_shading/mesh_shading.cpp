@@ -1,4 +1,4 @@
-/* Copyright (c) 2023 Holochip Corporation
+/* Copyright (c) 2023-2024 Holochip Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -38,7 +38,7 @@ MeshShading::MeshShading() :
 
 MeshShading::~MeshShading()
 {
-	if (device)
+	if (has_device())
 	{
 		vkDestroyPipeline(get_device().get_handle(), pipeline, nullptr);
 		vkDestroyPipelineLayout(get_device().get_handle(), pipeline_layout, nullptr);
@@ -81,7 +81,7 @@ void MeshShading::build_command_buffers()
 		VK_CHECK(vkBeginCommandBuffer(draw_cmd_buffers[i], &command_buffer_begin_info));
 		vkCmdBeginRenderPass(draw_cmd_buffers[i], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		VkViewport viewport = vkb::initializers::viewport((float) width, (float) height, 0.0f, 1.0f);
+		VkViewport viewport = vkb::initializers::viewport(static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
 		vkCmdSetViewport(draw_cmd_buffers[i], 0, 1, &viewport);
 
 		VkRect2D scissor = vkb::initializers::rect2D(static_cast<int32_t>(width), static_cast<int32_t>(height), 0, 0);
@@ -208,8 +208,8 @@ void MeshShading::prepare_pipelines()
 	// Load our SPIR-V shaders.
 	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages{};
 
-	shader_stages[0] = load_shader("mesh_shading/ms.mesh", VK_SHADER_STAGE_MESH_BIT_EXT);
-	shader_stages[1] = load_shader("mesh_shading/ps.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0] = load_shader("mesh_shading", "ms.mesh", VK_SHADER_STAGE_MESH_BIT_EXT);
+	shader_stages[1] = load_shader("mesh_shading", "ps.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	VkGraphicsPipelineCreateInfo pipeline_create_info =
 	    vkb::initializers::pipeline_create_info(
@@ -234,11 +234,13 @@ void MeshShading::prepare_pipelines()
 void MeshShading::render(float delta_time)
 {
 	if (!prepared)
+	{
 		return;
+	}
 	draw();
 }
 
-std::unique_ptr<vkb::VulkanSample> create_mesh_shading()
+std::unique_ptr<vkb::VulkanSample<vkb::BindingType::C>> create_mesh_shading()
 {
 	return std::make_unique<MeshShading>();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, Holochip Corporation
+/* Copyright (c) 2023-2024, Holochip Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -47,7 +47,7 @@ CalibratedTimestamps::CalibratedTimestamps() :
 
 CalibratedTimestamps::~CalibratedTimestamps()
 {
-	if (device)
+	if (has_device())
 	{
 		vkDestroyPipeline(get_device().get_handle(), pipelines.skybox, nullptr);
 		vkDestroyPipeline(get_device().get_handle(), pipelines.reflect, nullptr);
@@ -244,26 +244,12 @@ void CalibratedTimestamps::create_attachment(VkFormat format, VkImageUsageFlagBi
 
 void CalibratedTimestamps::prepare_offscreen_buffer()
 {
-	VkFormat color_format{VK_FORMAT_UNDEFINED};
-
 	const std::vector<VkFormat> float_format_priority_list = {
 	    VK_FORMAT_R32G32B32A32_SFLOAT,
-	    VK_FORMAT_R16G16B16A16_SFLOAT};
+	    VK_FORMAT_R16G16B16A16_SFLOAT        // Guaranteed blend support for this
+	};
 
-	for (auto &format : float_format_priority_list)
-	{
-		const VkFormatProperties properties = get_device().get_gpu().get_format_properties(format);
-		if (properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT)
-		{
-			color_format = format;
-			break;
-		}
-	}
-
-	if (color_format == VK_FORMAT_UNDEFINED)
-	{
-		throw std::runtime_error("No suitable float format could be determined");
-	}
+	VkFormat color_format = vkb::choose_blendable_format(get_device().get_gpu().get_handle(), float_format_priority_list);
 
 	{
 		offscreen.width  = static_cast<int32_t>(width);
@@ -494,7 +480,7 @@ void CalibratedTimestamps::setup_descriptor_pool()
 void CalibratedTimestamps::setup_descriptor_set_layout()
 {
 	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {
-	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
+	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
 	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
 	    vkb::initializers::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
 	};
@@ -630,8 +616,8 @@ void CalibratedTimestamps::prepare_pipelines()
 	VkPipelineVertexInputStateCreateInfo empty_input_state = vkb::initializers::pipeline_vertex_input_state_create_info();
 	pipeline_create_info.pVertexInputState                 = &empty_input_state;
 
-	shader_stages[0]                  = load_shader("hdr/composition.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]                  = load_shader("hdr/composition.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0]                  = load_shader("hdr", "composition.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]                  = load_shader("hdr", "composition.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 	pipeline_create_info.layout       = pipeline_layouts.composition;
 	pipeline_create_info.renderPass   = render_pass;
 	rasterization_state.cullMode      = VK_CULL_MODE_FRONT_BIT;
@@ -639,8 +625,8 @@ void CalibratedTimestamps::prepare_pipelines()
 	color_blend_state.pAttachments    = &blend_attachment_state;
 	VK_CHECK(vkCreateGraphicsPipelines(get_device().get_handle(), pipeline_cache, 1, &pipeline_create_info, nullptr, &pipelines.composition));
 
-	shader_stages[0]                           = load_shader("hdr/bloom.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1]                           = load_shader("hdr/bloom.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0]                           = load_shader("hdr", "bloom.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1]                           = load_shader("hdr", "bloom.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 	color_blend_state.pAttachments             = &blend_attachment_state;
 	blend_attachment_state.colorWriteMask      = 0xF;
 	blend_attachment_state.blendEnable         = VK_TRUE;
@@ -691,8 +677,8 @@ void CalibratedTimestamps::prepare_pipelines()
 	color_blend_state.attachmentCount  = static_cast<uint32_t>(blend_attachment_states.size());
 	color_blend_state.pAttachments     = blend_attachment_states.data();
 
-	shader_stages[0] = load_shader("hdr/gbuffer.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1] = load_shader("hdr/gbuffer.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0] = load_shader("hdr", "gbuffer.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1] = load_shader("hdr", "gbuffer.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	specialization_map_entries[0]        = vkb::initializers::specialization_map_entry(0, 0, sizeof(uint32_t));
 	uint32_t shadertype                  = 0;
@@ -725,6 +711,7 @@ void CalibratedTimestamps::update_uniform_buffers()
 	ubo_vs.projection        = camera.matrices.perspective;
 	ubo_vs.model_view        = camera.matrices.view * models.transforms[models.object_index];
 	ubo_vs.skybox_model_view = camera.matrices.view;
+	ubo_vs.inverse_modelview = glm::inverse(camera.matrices.view);
 	uniform_buffers.matrices->convert_and_update(ubo_vs);
 	timestamps_end("update ubo");
 }
@@ -772,10 +759,14 @@ bool CalibratedTimestamps::prepare(const vkb::ApplicationOptions &options)
 void CalibratedTimestamps::render(float delta_time)
 {
 	if (!prepared)
+	{
 		return;
+	}
 	draw();
 	if (camera.updated)
+	{
 		update_uniform_buffers();
+	}
 }
 
 void CalibratedTimestamps::get_time_domains()
@@ -863,7 +854,7 @@ void CalibratedTimestamps::timestamps_end(const std::string &input_tag)
 {
 	if (delta_timestamps.empty())
 	{
-		LOGE("Timestamps begin-to-end Fatal Error: Timestamps end is not tagged the same as its begin!\n")
+		LOGE("Timestamps begin-to-end Fatal Error: Timestamps end is not tagged the same as its begin!")
 		return;        // exits the function here, further calculation is meaningless
 	}
 
@@ -880,13 +871,13 @@ void CalibratedTimestamps::timestamps_end(const std::string &input_tag)
 		LOGE("timestamps_end called without a found corresponding begin timestamp for {}.", input_tag.c_str())
 		return;
 	}
-	LOGE("get_timestamps failed with %d", result)
+	LOGE("get_timestamps failed with {}", vkb::to_string(result))
 }
 
 void CalibratedTimestamps::on_update_ui_overlay(vkb::Drawer &drawer)
 {
 	// Timestamps period extracted in runtime
-	float timestamp_period = device->get_gpu().get_properties().limits.timestampPeriod;
+	float timestamp_period = get_device().get_gpu().get_properties().limits.timestampPeriod;
 	drawer.text("Timestamps Period:\n %.1f Nanoseconds", timestamp_period);
 
 	// Adjustment Handles:
@@ -895,15 +886,15 @@ void CalibratedTimestamps::on_update_ui_overlay(vkb::Drawer &drawer)
 		if (drawer.combo_box("Object type", &models.object_index, object_names))
 		{
 			update_uniform_buffers();
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
 		if (drawer.checkbox("Bloom", &bloom))
 		{
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
 		if (drawer.checkbox("Skybox", &display_skybox))
 		{
-			build_command_buffers();
+			rebuild_command_buffers();
 		}
 	}
 

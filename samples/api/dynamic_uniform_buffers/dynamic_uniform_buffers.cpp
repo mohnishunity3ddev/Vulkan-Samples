@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023, Sascha Willems
+/* Copyright (c) 2019-2024, Sascha Willems
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -37,7 +37,7 @@ DynamicUniformBuffers::DynamicUniformBuffers()
 
 DynamicUniformBuffers ::~DynamicUniformBuffers()
 {
-	if (device)
+	if (has_device())
 	{
 		if (ubo_data_dynamic.model)
 		{
@@ -213,13 +213,13 @@ void DynamicUniformBuffers::generate_cube()
 	vertex_buffer = std::make_unique<vkb::core::Buffer>(get_device(),
 	                                                    vertex_buffer_size,
 	                                                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-	                                                    VMA_MEMORY_USAGE_GPU_TO_CPU);
+	                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
 	vertex_buffer->update(vertices.data(), vertex_buffer_size);
 
 	index_buffer = std::make_unique<vkb::core::Buffer>(get_device(),
 	                                                   index_buffer_size,
 	                                                   VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-	                                                   VMA_MEMORY_USAGE_GPU_TO_CPU);
+	                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
 	index_buffer->update(indices.data(), index_buffer_size);
 }
 
@@ -341,8 +341,8 @@ void DynamicUniformBuffers::prepare_pipelines()
 	// Load shaders
 	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages;
 
-	shader_stages[0] = load_shader("dynamic_uniform_buffers/base.vert", VK_SHADER_STAGE_VERTEX_BIT);
-	shader_stages[1] = load_shader("dynamic_uniform_buffers/base.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+	shader_stages[0] = load_shader("dynamic_uniform_buffers", "base.vert", VK_SHADER_STAGE_VERTEX_BIT);
+	shader_stages[1] = load_shader("dynamic_uniform_buffers", "base.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	// Vertex bindings and attributes
 	const std::vector<VkVertexInputBindingDescription> vertex_input_bindings = {
